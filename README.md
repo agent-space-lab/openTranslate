@@ -102,6 +102,28 @@ winget install PhilBerndt.GPTranslate
 2. **Click "Get Alternatives"** to see different translation options
 3. **Choose the best translation** for your context
 
+## 📸 Screenshots
+
+### Welcome Window
+
+![Welcome Window](screenshots/screenshot1.png)
+
+### Dark Theme
+
+![Dark Theme](screenshots/screenshot2.png)
+
+### Main Window
+
+![Main Window](screenshots/screenshot3.png)
+
+### Alternative Translations
+
+![Alternative Translations](screenshots/screenshot4.png)
+
+### Settings
+
+![Settings](screenshots/screenshot5.png)
+
 ## 🆕 What's New in Version 2.0.0
 
 ### 🎉 Major Enhancements
