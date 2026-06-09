@@ -9,17 +9,19 @@
 <!-- About Section -->
 <section class="flex flex-col items-center gap-4">
   <AppIcon size={56} className="" />
-  <h2 class="text-2xl font-bold">GPTranslate</h2>
+  <h2 class="text-2xl font-bold">OpenTranslate</h2>
   <span class="text-sm text-base-content/70">v{version}</span>
   <h4 class="text-lg font-semibold mt-2">About</h4>
   <div class="flex flex-col gap-2 mt-2">
     <div>
       <strong>Developer:</strong>
-      <span>Phil Berndt</span>
+      <span>Phil Berndt</span><br />
+      <span>Pirapat Thananopparit</span>
     </div>
     <div>
       <strong>Email:</strong>
-      <span>phil@berndt.no</span>
+      <span>phil@berndt.no</span><br />
+      <span>works@thecosmic.dev</span>
     </div>
     <div>
       <strong>Website:</strong>
@@ -30,6 +32,14 @@
         class="link"
       >
         gptranslate.berndt.no
+      </a>
+      <a
+        href="https://thecosmic.dev"
+        target="https://thecosmic.dev"
+        rel="noopener noreferrer"
+        class="link"
+      >
+        thecosmic.dev
       </a>
     </div>
   </div>

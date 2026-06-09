@@ -6,6 +6,7 @@ export interface Config {
   azure_translator_api_key: string;
   azure_translator_endpoint: string;
   ollama_url?: string;
+  lm_studio_url?: string;
 }
 
 /**
@@ -33,6 +34,8 @@ export function isProviderConfigured(
       );
     case "ollama":
       return !!(config.ollama_url && config.ollama_url.length > 0);
+    case "lm_studio":
+      return !!(config.lm_studio_url && config.lm_studio_url.length > 0);
     default:
       return false;
   }
@@ -44,7 +47,13 @@ export function isProviderConfigured(
 export function isAnyProviderConfigured(config: Config | null): boolean {
   if (!config) return false;
 
-  const providers = ["openai", "azure_openai", "azure_translator", "ollama"];
+  const providers = [
+    "openai",
+    "azure_openai",
+    "azure_translator",
+    "ollama",
+    "lm_studio",
+  ];
   return providers.some((provider) => isProviderConfigured(config, provider));
 }
 
@@ -54,6 +63,12 @@ export function isAnyProviderConfigured(config: Config | null): boolean {
 export function getConfiguredProviders(config: Config | null): string[] {
   if (!config) return [];
 
-  const providers = ["openai", "azure_openai", "azure_translator", "ollama"];
+  const providers = [
+    "openai",
+    "azure_openai",
+    "azure_translator",
+    "ollama",
+    "lm_studio",
+  ];
   return providers.filter((provider) => isProviderConfigured(config, provider));
 }

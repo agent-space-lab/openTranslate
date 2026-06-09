@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::provider_factory::create_provider;
 use crate::trans_azure::AzureOpenAITranslationService;
+use crate::trans_lm_studio::LmStudioTranslationService;
 use crate::trans_ollama::OllamaTranslationService;
 use crate::trans_openai::OpenAITranslationService;
 use anyhow::Result;
@@ -404,6 +405,7 @@ pub async fn get_alternative_translations_debug(
                 "openai" => Box::new(OpenAITranslationService::new(alt_config)),
                 "azure_openai" => Box::new(AzureOpenAITranslationService::new(alt_config)),
                 "ollama" => Box::new(OllamaTranslationService::new(alt_config)),
+                "lm_studio" => Box::new(LmStudioTranslationService::new(alt_config)),
                 _ => {
                     debug_info.insert(
                         "fallback_error".to_string(),
@@ -432,6 +434,7 @@ pub async fn get_alternative_translations_debug(
             "openai" => Box::new(OpenAITranslationService::new(alt_config)),
             "azure_openai" => Box::new(AzureOpenAITranslationService::new(alt_config)),
             "ollama" => Box::new(OllamaTranslationService::new(alt_config)),
+            "lm_studio" => Box::new(LmStudioTranslationService::new(alt_config)),
             _ => {
                 debug_info.insert(
                     "provider_error".to_string(),
@@ -581,6 +584,7 @@ pub async fn get_alternative_translations(
                 "openai" => Box::new(OpenAITranslationService::new(alt_config)),
                 "azure_openai" => Box::new(AzureOpenAITranslationService::new(alt_config)),
                 "ollama" => Box::new(OllamaTranslationService::new(alt_config)),
+                "lm_studio" => Box::new(LmStudioTranslationService::new(alt_config)),
                 _ => {
                     log::warn!(
                         "Unknown alternatives provider '{}', defaulting to OpenAI",
@@ -611,6 +615,7 @@ pub async fn get_alternative_translations(
             "openai" => Box::new(OpenAITranslationService::new(alt_config)),
             "azure_openai" => Box::new(AzureOpenAITranslationService::new(alt_config)),
             "ollama" => Box::new(OllamaTranslationService::new(alt_config)),
+            "lm_studio" => Box::new(LmStudioTranslationService::new(alt_config)),
             _ => {
                 log::warn!(
                     "Unknown API provider '{}', defaulting to OpenAI",

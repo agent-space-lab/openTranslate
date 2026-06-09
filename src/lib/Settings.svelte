@@ -248,7 +248,8 @@
       (config.api_provider === "azure_translator" &&
         (!config.azure_translator_api_key ||
           !config.azure_translator_endpoint)) ||
-      (config.api_provider === "ollama" && !config.ollama_url)
+      (config.api_provider === "ollama" && !config.ollama_url) ||
+      (config.api_provider === "lm_studio" && !config.lm_studio_url)
     ) {
       return
     }
@@ -268,6 +269,7 @@
           : config.api_provider === "azure_translator" ?
             config.azure_translator_endpoint
           : config.api_provider === "ollama" ? config.ollama_url
+          : config.api_provider === "lm_studio" ? config.lm_studio_url
           : null,
         apiVersion:
           config.api_provider === "azure_openai" ?
@@ -402,6 +404,7 @@
         {:else if activeTab === "models"}
           <ModelManagement
             availableModels={config.available_models}
+            lmStudioUrl={config.lm_studio_url}
             onModelAdd={handleModelAdd}
             onModelRemove={handleModelRemove}
             onModelToggle={handleModelToggle}

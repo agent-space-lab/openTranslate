@@ -6,10 +6,13 @@
   import ModelSelector from "../lib/ModelSelector.svelte"
   import AlternativeTranslations from "../lib/AlternativeTranslations.svelte"
   import NoConfigScreen from "../lib/NoConfigScreen.svelte"
+  import FloatingWidget from "../lib/FloatingWidget.svelte"
+  import { getCurrentWindow } from "@tauri-apps/api/window"
 
   import CompactLanguageDropdown from "../lib/CompactLanguageDropdown.svelte"
   import { LanguageManager, type Language } from "../lib/languages"
   import { isAnyProviderConfigured } from "../lib/utils/configUtils"
+  import { applyTheme, updateAutoTheme } from "../lib/utils/theme"
 
   // Import Heroicons
   import {
@@ -38,6 +41,9 @@
   let activeView = $state<"translate" | "settings" | "history">("translate")
   let currentTheme = $state("auto")
 
+  // Which Tauri window this document is rendering in ("main" or "floating").
+  let windowLabel = $state("main")
+
   // Check if any API provider is configured
   let hasConfiguredProvider = $derived(isAnyProviderConfigured(config))
 
@@ -57,23 +63,8 @@
   let lastTranslationTime = 0
   const RESET_PROTECTION_DELAY = 1000
 
-  // Function to apply theme based on configuration
-  function applyTheme(theme: string) {
-    if (theme === "auto") {
-      updateAutoTheme()
-    } else {
-      // Apply the specified theme
-      document.documentElement.setAttribute("data-theme", theme)
-    }
-  }
-
-  function updateAutoTheme() {
-    const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-    document.documentElement.setAttribute(
-      "data-theme",
-      isDark ? "dark" : "light"
-    )
-  }
+  // Theme helpers (applyTheme / updateAutoTheme) are imported from lib/utils/theme
+  // so the floating window can reuse the exact same logic.
 
   // Function to change theme and save it to config
   async function changeTheme(newTheme: string) {
@@ -118,6 +109,8 @@
         azure_api_key: "",
         azure_endpoint: "",
         azure_api_version: "2024-02-01",
+        ollama_url: "http://localhost:11434",
+        lm_studio_url: "http://127.0.0.1:1234",
         user_source_language: "English",
         user_target_language: "Spanish",
         target_language: "English",
@@ -130,8 +123,10 @@
         hotkey_enabled: true,
         hotkey_modifiers: ["ctrl", "shift"],
         hotkey_key: "t",
+        floating_on_hotkey: true,
         available_models: {
           openai: [],
+          lm_studio: [],
         },
       }
       currentTheme = "auto"
@@ -216,9 +211,20 @@
     await loadConfig()
   }
   onMount(() => {
+    // Determine which window we're in; the floating window renders FloatingWidget
+    // and manages its own listeners.
+    try {
+      windowLabel = getCurrentWindow().label
+    } catch {
+      windowLabel = "main"
+    }
+
     // Load config
     const initializeApp = async () => {
       await loadConfig() // Make sure config is loaded first
+
+      // The floating window handles its own events inside FloatingWidget.
+      if (windowLabel !== "main") return
 
       // Listen for clipboard text from global shortcut
       await listen("clipboard-text", (event) => {
@@ -255,8 +261,10 @@
     }
     darkModeMediaQuery.addEventListener("change", handleThemeChange)
 
-    // Set up global keyboard event listener
-    document.addEventListener("keydown", handleKeydown)
+    // Set up global keyboard event listener (main window only)
+    if (windowLabel === "main") {
+      document.addEventListener("keydown", handleKeydown)
+    }
 
     return () => {
       // Clean up the listeners when the component is destroyed
@@ -419,8 +427,11 @@
   }
 </script>
 
-<main class="mx-auto p-3 md:p-4 h-screen overflow-hidden bg-base-100">
-  {#if activeView === "settings"}
+{#if windowLabel === "floating"}
+  <FloatingWidget />
+{:else}
+  <main class="mx-auto p-3 md:p-4 h-screen overflow-hidden bg-base-100">
+    {#if activeView === "settings"}
     <!-- Settings view should be accessible even when no provider configured -->
     <div data-view="settings" class="flex flex-col h-full overflow-hidden">
       <Settings
@@ -443,7 +454,10 @@
           hotkey_enabled: true,
           hotkey_modifiers: ["ctrl", "shift"],
           hotkey_key: "t",
-          available_models: { openai: [] },
+          floating_on_hotkey: true,
+          ollama_url: "http://localhost:11434",
+          lm_studio_url: "http://127.0.0.1:1234",
+          available_models: { openai: [], lm_studio: [] },
         }}
         onClose={closeSettings}
         theme={currentTheme}
@@ -641,16 +655,17 @@
   {/if}
 </main>
 
-<!-- Copy notification toast -->
-{#if showCopyNotification}
-  <div class="toast toast-top toast-end">
-    <div class="alert alert-success" role="alert">
-      <div class="flex items-center gap-2">
-        <CheckCircleIcon class="w-5 h-5" />
-        Translation copied to clipboard
+  <!-- Copy notification toast -->
+  {#if showCopyNotification}
+    <div class="toast toast-top toast-end">
+      <div class="alert alert-success" role="alert">
+        <div class="flex items-center gap-2">
+          <CheckCircleIcon class="w-5 h-5" />
+          Translation copied to clipboard
+        </div>
       </div>
     </div>
-  </div>
+  {/if}
 {/if}
 
 <!-- Custom CSS goes in /src/styles.css */ -->

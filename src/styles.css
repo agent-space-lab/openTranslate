@@ -126,6 +126,14 @@ body {
   background-color: var(--color-app-bg);
 }
 
+/* The floating window is a transparent, frameless popup: keep its document
+   transparent so the rounded card (with shadow) is what the user sees.
+   The class is added by FloatingWidget only in the floating window's document. */
+html.gpt-floating,
+body.gpt-floating {
+  background: transparent !important;
+}
+
 /* Make form fields and card surfaces use the field tone and subtle border */
 .input,
 .textarea,

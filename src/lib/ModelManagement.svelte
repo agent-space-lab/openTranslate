@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { PlusIcon } from "heroicons-svelte/24/outline"
+  import { PlusIcon, ArrowPathIcon } from "heroicons-svelte/24/outline"
+  import { invoke } from "./tauri"
   // Types
   export interface ModelConfig {
     name: string
@@ -10,8 +11,15 @@
   }
 
   // Props
-  let { availableModels, onModelAdd, onModelRemove, onModelToggle } = $props<{
+  let {
+    availableModels,
+    lmStudioUrl,
+    onModelAdd,
+    onModelRemove,
+    onModelToggle,
+  } = $props<{
     availableModels: Record<string, ModelConfig[]>
+    lmStudioUrl?: string
     onModelAdd: (provider: string, model: ModelConfig) => void
     onModelRemove: (provider: string, modelIndex: number) => void
     onModelToggle: (provider: string, modelIndex: number) => void
@@ -22,6 +30,50 @@
   let newModelDisplayName = $state("")
   let newModelDescription = $state("")
   let selectedProvider = $state("openai")
+
+  // LM Studio auto-discovery state
+  let isFetchingModels = $state(false)
+  let fetchMessage = $state("")
+
+  async function fetchLmStudioModels() {
+    isFetchingModels = true
+    fetchMessage = ""
+    try {
+      const models = (await invoke("fetch_lm_studio_models", {
+        url: lmStudioUrl || "",
+      })) as string[] | null
+
+      if (!models || models.length === 0) {
+        fetchMessage =
+          "No models returned. Make sure a model is loaded in LM Studio."
+        return
+      }
+
+      const existing = new Set(
+        (availableModels["lm_studio"] || []).map((m: ModelConfig) => m.name)
+      )
+      let added = 0
+      for (const id of models) {
+        if (existing.has(id)) continue
+        onModelAdd("lm_studio", {
+          name: id,
+          display_name: id,
+          provider: "lm_studio",
+          is_enabled: true,
+        })
+        added++
+      }
+      fetchMessage =
+        added > 0 ?
+          `Added ${added} model${added === 1 ? "" : "s"} from LM Studio.`
+        : "All available models are already added."
+    } catch (e) {
+      console.error("Failed to fetch LM Studio models:", e)
+      fetchMessage = `Failed to reach LM Studio: ${e}`
+    } finally {
+      isFetchingModels = false
+    }
+  }
 
   function addModel() {
     if (!newModelName.trim() || !newModelDisplayName.trim()) return
@@ -76,6 +128,7 @@
               <option value="openai">OpenAI</option>
               <option value="azure_openai">Azure OpenAI</option>
               <option value="ollama">Ollama</option>
+              <option value="lm_studio">LM Studio</option>
             </select>
           </div>
           <div class="form-control w-full flex flex-col">
@@ -121,6 +174,27 @@
           </div>
         </div>
 
+        {#if selectedProvider === "lm_studio"}
+          <div class="flex items-center gap-3 mx-8">
+            <button
+              type="button"
+              class="btn btn-soft btn-sm"
+              onclick={fetchLmStudioModels}
+              disabled={isFetchingModels}
+            >
+              {#if isFetchingModels}
+                <span class="loading loading-spinner loading-xs"></span>
+              {:else}
+                <ArrowPathIcon class="w-4 h-4" />
+              {/if}
+              Fetch models from server
+            </button>
+            {#if fetchMessage}
+              <span class="text-xs text-base-content/60">{fetchMessage}</span>
+            {/if}
+          </div>
+        {/if}
+
         <div class="card-actions justify-end mt-4 mx-8">
           <button
             class="btn btn-primary"
@@ -146,6 +220,7 @@
               {provider === "openai" ? "OpenAI"
               : provider === "azure_openai" ? "Azure OpenAI"
               : provider === "ollama" ? "Ollama"
+              : provider === "lm_studio" ? "LM Studio"
               : provider} Models
             </h5>
             <span class="badge badge-outline badge-sm">

@@ -58,7 +58,7 @@
       <h5 class="card-title flex items-center gap-2">
         <WrenchScrewdriverIcon class="h-5 w-5" />API Configuration
       </h5>
-      <div class="grid grid-cols-4 gap-3 mx-8">
+      <div class="grid grid-cols-5 gap-3 mx-8">
         <div class="form-control">
           <button
             type="button"
@@ -161,6 +161,32 @@
               </svg>
             </div>
             <span class="truncate">Ollama</span>
+          </button>
+        </div>
+
+        <div class="form-control">
+          <button
+            type="button"
+            class={`btn btn-soft w-full justify-center flex-col gap-2 text-center text-xs aspect-square h-24 rounded-xl ${config.api_provider === "lm_studio" ? "btn-active" : ""}`}
+            onclick={() => {
+              updateConfig("api_provider", "lm_studio")
+              onApiProviderChange()
+            }}
+          >
+            <div class="w-10 h-10 flex-shrink-0">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="40"
+                height="40"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M9 2a1 1 0 0 1 1 1v1h4V3a1 1 0 1 1 2 0v1a3 3 0 0 1 3 3h1a1 1 0 1 1 0 2h-1v4h1a1 1 0 1 1 0 2h-1a3 3 0 0 1-3 3v1a1 1 0 1 1-2 0v-1h-4v1a1 1 0 1 1-2 0v-1a3 3 0 0 1-3-3H3a1 1 0 1 1 0-2h1v-4H3a1 1 0 0 1 0-2h1a3 3 0 0 1 3-3V3a1 1 0 0 1 1-1Zm-2 6v8h10V8H7Z"
+                ></path>
+              </svg>
+            </div>
+            <span class="truncate">LM Studio</span>
           </button>
         </div>
       </div>
@@ -511,6 +537,46 @@
             <span class="label-text-alt text-base-content/30 text-wrap">
               URL of your Ollama server. Make sure Ollama is running locally or
               provide the remote server URL.
+            </span>
+          </div>
+        </div>
+      {:else if config.api_provider === "lm_studio"}
+        <div class="form-control w-full">
+          <label class="label" for="lm-studio-url">
+            <span class="label-text font-medium mb-2">LM Studio Server URL</span>
+          </label>
+          <div class="flex items-center gap-2">
+            <input
+              id="lm-studio-url"
+              type="text"
+              class="input input-bordered bg-base-200 flex-1"
+              style="appearance: none; -webkit-appearance: none; -moz-appearance: textfield;"
+              value={config.lm_studio_url || "http://127.0.0.1:1234"}
+              placeholder="http://127.0.0.1:1234"
+              onblur={validateApiKey}
+              oninput={(e) =>
+                updateConfig(
+                  "lm_studio_url",
+                  (e.target as HTMLInputElement).value
+                )}
+            />
+            <div class="w-8 h-8 flex items-center justify-center">
+              {#if isValidatingApiKey}
+                <span class="loading loading-spinner loading-sm"></span>
+              {:else if apiKeyValid === true}
+                <span class="text-success text-lg">✓</span>
+              {:else if apiKeyValid === false}
+                <span class="text-error text-lg">✕</span>
+              {:else}
+                <span class="text-base-content/50 text-lg">?</span>
+              {/if}
+            </div>
+          </div>
+          <div class="label">
+            <span class="label-text-alt text-base-content/30 text-wrap">
+              URL of your LM Studio server (OpenAI-compatible). Start the local
+              server in LM Studio and load a model, then use Model Management →
+              "Fetch models from server".
             </span>
           </div>
         </div>

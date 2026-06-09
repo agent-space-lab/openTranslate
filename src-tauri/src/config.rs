@@ -24,6 +24,7 @@ pub struct Config {
     pub azure_translator_api_key: String,
     pub azure_translator_region: String,
     pub ollama_url: Option<String>,
+    pub lm_studio_url: Option<String>,
     pub model: String, // Current selected model
     pub available_models: HashMap<String, Vec<ModelConfig>>, // Provider -> Models
     pub target_language: String, // User-specified target language (e.g., "Spanish", "French", "German")
@@ -41,6 +42,7 @@ pub struct Config {
     pub auto_translate_debounce_ms: u32,
     pub auto_translate_on_paste: bool,
     pub auto_translate_while_typing: bool,
+    pub floating_on_hotkey: bool,
 }
 
 impl Default for Config {
@@ -52,6 +54,7 @@ impl Default for Config {
         available_models.insert("azure_openai".to_string(), vec![]);
         available_models.insert("azure_translator".to_string(), vec![]);
         available_models.insert("ollama".to_string(), vec![]);
+        available_models.insert("lm_studio".to_string(), vec![]);
 
         Self {
             api_provider: "".to_string(),
@@ -64,6 +67,7 @@ impl Default for Config {
             azure_translator_api_key: "".to_string(),
             azure_translator_region: "".to_string(),
             ollama_url: Some("".to_string()),
+            lm_studio_url: Some("http://127.0.0.1:1234".to_string()),
             model: "".to_string(),
             available_models,
             target_language: "English".to_string(),
@@ -81,6 +85,7 @@ impl Default for Config {
             auto_translate_debounce_ms: 500,
             auto_translate_on_paste: true,
             auto_translate_while_typing: true,
+            floating_on_hotkey: true,
         }
     }
 }
@@ -99,7 +104,7 @@ impl Config {
 
         // Validate provider
         match provider.as_str() {
-            "openai" | "azure_openai" | "ollama" => {}
+            "openai" | "azure_openai" | "ollama" | "lm_studio" => {}
             other => {
                 log::warn!("Unknown alternatives fallback provider '{}'", other);
                 return None;
@@ -219,6 +224,12 @@ impl Config {
                         if value.get("ollama_url").is_none() {
                             value["ollama_url"] =
                                 serde_json::Value::String("http://localhost:11434".to_string());
+                        }
+
+                        // Add lm_studio_url if missing
+                        if value.get("lm_studio_url").is_none() {
+                            value["lm_studio_url"] =
+                                serde_json::Value::String("http://127.0.0.1:1234".to_string());
                         } // Add available_models if missing with empty arrays
                         if value.get("available_models").is_none() {
                             let mut available_models = serde_json::Map::new();
@@ -228,7 +239,15 @@ impl Config {
                             available_models
                                 .insert("azure_translator".to_string(), serde_json::json!([]));
                             available_models.insert("ollama".to_string(), serde_json::json!([]));
+                            available_models.insert("lm_studio".to_string(), serde_json::json!([]));
                             value["available_models"] = serde_json::Value::Object(available_models);
+                        } else if let Some(models) = value
+                            .get_mut("available_models")
+                            .and_then(|v| v.as_object_mut())
+                            && !models.contains_key("lm_studio")
+                        {
+                            // available_models exists from an older version but lacks lm_studio
+                            models.insert("lm_studio".to_string(), serde_json::json!([]));
                         }
 
                         // Add azure_translator fields if missing
@@ -280,6 +299,11 @@ impl Config {
                         }
                         if value.get("auto_translate_while_typing").is_none() {
                             value["auto_translate_while_typing"] = serde_json::Value::Bool(true);
+                        }
+
+                        // Add floating_on_hotkey if missing
+                        if value.get("floating_on_hotkey").is_none() {
+                            value["floating_on_hotkey"] = serde_json::Value::Bool(true);
                         }
 
                         // Ensure target_language has a sensible default if it was "auto"

@@ -263,6 +263,27 @@
                 >
               </label>
             </div>
+            <div class="form-control">
+              <label
+                class="label cursor-pointer justify-start gap-3"
+                for="floating-on-hotkey"
+              >
+                <input
+                  id="floating-on-hotkey"
+                  type="checkbox"
+                  class="toggle toggle-xs"
+                  checked={config.floating_on_hotkey}
+                  onchange={(e) =>
+                    updateConfig(
+                      "floating_on_hotkey",
+                      (e.target as HTMLInputElement).checked
+                    )}
+                />
+                <span class="label-text font-medium text-wrap"
+                  >Show floating popup on hotkey (translate selection)</span
+                >
+              </label>
+            </div>
           </div>
         </div>
       </div>

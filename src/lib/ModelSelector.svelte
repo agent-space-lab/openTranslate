@@ -19,6 +19,7 @@
     azure_translator_endpoint: string
     azure_translator_region: string
     ollama_url: string
+    lm_studio_url?: string
     azure_deployment_name?: string
   }
   interface Props {
@@ -84,6 +85,8 @@
         )
       case "ollama":
         return config.ollama_url?.length > 0
+      case "lm_studio":
+        return (config.lm_studio_url?.length ?? 0) > 0
       default:
         return false
     }
@@ -138,6 +141,7 @@
   function readableProviderName(provider: string): string {
     if (provider === "azure_openai") return "Azure OpenAI"
     if (provider === "azure_translator") return "Azure AI Translator"
+    if (provider === "lm_studio") return "LM Studio"
     return provider.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())
   }
 

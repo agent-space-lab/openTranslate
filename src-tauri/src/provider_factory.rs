@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::trans_azure::AzureOpenAITranslationService;
 use crate::trans_azure_translator::AzureTranslatorService;
+use crate::trans_lm_studio::LmStudioTranslationService;
 use crate::trans_ollama::OllamaTranslationService;
 use crate::trans_openai::OpenAITranslationService;
 use crate::translation::TranslationProvider;
@@ -15,6 +16,7 @@ pub fn create_provider(mut config: Config) -> Box<dyn TranslationProvider + Send
         "azure_openai" => Box::new(AzureOpenAITranslationService::new(config)),
         "azure_translator" => Box::new(AzureTranslatorService::new(config)),
         "ollama" => Box::new(OllamaTranslationService::new(config)),
+        "lm_studio" => Box::new(LmStudioTranslationService::new(config)),
         other => {
             log::warn!("Unknown API provider '{}' , defaulting to OpenAI", other);
             let mut fallback = config.clone();

@@ -13,6 +13,7 @@ mod provider_factory;
 pub mod theme;
 mod trans_azure;
 mod trans_azure_translator;
+mod trans_lm_studio;
 mod trans_ollama;
 mod trans_openai;
 mod translation;
@@ -306,6 +307,22 @@ async fn validate_api_key(
                 Err("Ollama URL is required".to_string())
             }
         }
+        "lm_studio" => {
+            if let Some(lm_studio_url) = endpoint {
+                // Test connection to LM Studio server via its OpenAI-compatible models endpoint
+                let url = format!("{}/v1/models", lm_studio_url.trim_end_matches('/'));
+
+                let response = client
+                    .get(&url)
+                    .send()
+                    .await
+                    .map_err(|e| format!("LM Studio server connection failed: {}", e))?;
+
+                Ok(response.status().is_success())
+            } else {
+                Err("LM Studio URL is required".to_string())
+            }
+        }
         "azure_translator" => {
             if let Some(endpoint) = endpoint {
                 // Test Azure Translator with a simple language detection call
@@ -337,6 +354,48 @@ async fn validate_api_key(
         }
         _ => Err("Unsupported API provider".to_string()),
     }
+}
+
+/// Fetch the list of loaded model ids from an LM Studio server (OpenAI-compatible GET /v1/models).
+#[tauri::command]
+async fn fetch_lm_studio_models(url: String) -> Result<Vec<String>, String> {
+    let endpoint = if url.trim().is_empty() {
+        "http://127.0.0.1:1234".to_string()
+    } else {
+        url.trim().to_string()
+    };
+    let models_url = format!("{}/v1/models", endpoint.trim_end_matches('/'));
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&models_url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to reach LM Studio server: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "LM Studio server returned status {}",
+            response.status()
+        ));
+    }
+
+    let body: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse LM Studio models response: {}", e))?;
+
+    let models = body
+        .get("data")
+        .and_then(|d| d.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|m| m.get("id").and_then(|id| id.as_str()).map(String::from))
+                .collect::<Vec<String>>()
+        })
+        .unwrap_or_default();
+
+    Ok(models)
 }
 
 #[tauri::command]
@@ -523,26 +582,205 @@ async fn setup_global_shortcut(
     Ok(())
 }
 
+/// Simulate a Ctrl+C keystroke so the foreground application copies its current
+/// selection to the clipboard. Windows-only; a no-op on other platforms.
+#[cfg(target_os = "windows")]
+fn simulate_copy() {
+    use std::mem::{size_of, zeroed};
+    use winapi::um::winuser::{
+        INPUT, INPUT_KEYBOARD, KEYEVENTF_KEYUP, SendInput, VK_CONTROL,
+    };
+
+    const VK_C: u16 = 0x43;
+
+    fn key_event(vk: u16, key_up: bool) -> INPUT {
+        // SAFETY: zero-initializing a POD INPUT struct and writing its keyboard union.
+        unsafe {
+            let mut input: INPUT = zeroed();
+            input.type_ = INPUT_KEYBOARD;
+            let ki = input.u.ki_mut();
+            ki.wVk = vk;
+            ki.dwFlags = if key_up { KEYEVENTF_KEYUP } else { 0 };
+            input
+        }
+    }
+
+    let mut inputs = [
+        key_event(VK_CONTROL as u16, false),
+        key_event(VK_C, false),
+        key_event(VK_C, true),
+        key_event(VK_CONTROL as u16, true),
+    ];
+
+    // SAFETY: `inputs` is a valid, non-empty array of INPUT structs.
+    let sent = unsafe {
+        SendInput(
+            inputs.len() as u32,
+            inputs.as_mut_ptr(),
+            size_of::<INPUT>() as i32,
+        )
+    };
+    if sent != inputs.len() as u32 {
+        log::warn!("SendInput sent {} of {} events", sent, inputs.len());
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn simulate_copy() {
+    // Selection capture via simulated copy is only implemented on Windows.
+}
+
+/// Current mouse cursor position in physical screen pixels (Windows-only).
+#[cfg(target_os = "windows")]
+fn get_cursor_position() -> Option<(i32, i32)> {
+    use winapi::shared::windef::POINT;
+    use winapi::um::winuser::GetCursorPos;
+
+    unsafe {
+        let mut point = POINT { x: 0, y: 0 };
+        if GetCursorPos(&mut point) != 0 {
+            Some((point.x, point.y))
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn get_cursor_position() -> Option<(i32, i32)> {
+    None
+}
+
+/// Position the floating window near the cursor (clamped to the cursor's monitor) and show it.
+fn position_and_show_floating(app: &AppHandle) -> tauri::Result<()> {
+    let Some(window) = app.get_webview_window("floating") else {
+        log::error!("Floating window not found");
+        return Ok(());
+    };
+
+    if let Some((cx, cy)) = get_cursor_position() {
+        // Default: slightly below-right of the cursor.
+        let mut x = cx + 16;
+        let mut y = cy + 16;
+
+        // Best-effort clamp to the monitor under the cursor so the popup stays on-screen.
+        if let Ok(monitors) = window.available_monitors()
+            && let Some(monitor) = monitors.into_iter().find(|m| {
+                let pos = m.position();
+                let size = m.size();
+                cx >= pos.x
+                    && cx < pos.x + size.width as i32
+                    && cy >= pos.y
+                    && cy < pos.y + size.height as i32
+            })
+        {
+            let mpos = monitor.position();
+            let msize = monitor.size();
+            let scale = monitor.scale_factor();
+            let win_w = (380.0 * scale) as i32;
+            let win_h = (240.0 * scale) as i32;
+            let max_x = mpos.x + msize.width as i32 - win_w;
+            let max_y = mpos.y + msize.height as i32 - win_h;
+            x = x.clamp(mpos.x, max_x.max(mpos.x));
+            y = y.clamp(mpos.y, max_y.max(mpos.y));
+        }
+
+        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+    }
+
+    window.show()?;
+    window.set_focus()?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn show_floating_at_cursor(app: AppHandle) -> Result<(), String> {
+    position_and_show_floating(&app).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn set_target_language(language: String, state: State<'_, AppState>) -> Result<(), String> {
+    let updated = {
+        let mut config = state.config.lock().await;
+        config.target_language = language;
+        config.save().map_err(|e| format!("Failed to save config: {}", e))?;
+        config.clone()
+    };
+    let mut service = state.translation_service.lock().await;
+    *service = TranslationService::new(updated);
+    Ok(())
+}
+
+#[tauri::command]
+async fn hide_floating_window(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("floating") {
+        window.hide().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 async fn handle_shortcut_activation(app: AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         // Always reset detected language first, regardless of focus state
         let _ = window.emit("reset-detected-language", ());
         log::info!("Global shortcut triggered - resetting detected language");
 
+        // Whether the unfocused hotkey should drive the selection -> floating popup flow.
+        let floating_on_hotkey = {
+            let state = app.state::<AppState>();
+            let config = state.config.lock().await;
+            config.floating_on_hotkey
+        };
+
         // Check if window is focused to determine additional behavior
         match window.is_focused() {
             Ok(is_focused) => {
                 if !is_focused {
-                    // Window is not focused - also perform clipboard capture
-                    handle_clipboard_capture(&app, &window).await;
+                    // Window is not focused - capture from the foreground app
+                    if floating_on_hotkey {
+                        handle_selection_capture(&app).await;
+                    } else {
+                        handle_clipboard_capture(&app, &window).await;
+                    }
                 }
                 // If focused, only reset detected language (already done above)
             }
             Err(e) => {
                 log::error!("Failed to check window focus state: {}", e);
-                // Fallback to clipboard capture behavior
-                handle_clipboard_capture(&app, &window).await;
+                // Fallback to capture behavior
+                if floating_on_hotkey {
+                    handle_selection_capture(&app).await;
+                } else {
+                    handle_clipboard_capture(&app, &window).await;
+                }
             }
+        }
+    }
+}
+
+/// Simulate a copy of the foreground selection, then show the captured text in the
+/// floating popup for translation.
+async fn handle_selection_capture(app: &AppHandle) {
+    // Copy the current selection from the foreground app into the clipboard.
+    simulate_copy();
+    // Give the foreground app time to populate the clipboard.
+    tokio::time::sleep(tokio::time::Duration::from_millis(120)).await;
+
+    match app.clipboard().read_text() {
+        Ok(text) if !text.trim().is_empty() => {
+            if let Err(e) = position_and_show_floating(app) {
+                log::error!("Failed to show floating window: {}", e);
+            }
+            if let Some(floating) = app.get_webview_window("floating") {
+                let _ = floating.emit("selection-text", &text);
+                log::info!("Selection text sent to floating window");
+            }
+        }
+        Ok(_) => {
+            log::warn!("Selection capture: clipboard empty after simulated copy");
+        }
+        Err(e) => {
+            log::error!("Selection capture: failed to read clipboard: {}", e);
         }
     }
 }
@@ -676,6 +914,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             show_main_window,
+            show_floating_at_cursor,
+            set_target_language,
+            hide_floating_window,
             get_clipboard_text,
             translate,
             get_config,
@@ -684,6 +925,7 @@ pub fn run() {
             test_translation_from_clipboard,
             get_windows_theme,
             validate_api_key,
+            fetch_lm_studio_models,
             get_translation_history_cmd,
             clear_translation_history_cmd,
             deduplicate_history_cmd,

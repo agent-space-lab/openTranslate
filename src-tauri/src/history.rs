@@ -190,8 +190,8 @@ fn levenshtein_distance(s1: &str, s2: &str) -> usize {
     for (i, item) in matrix.iter_mut().enumerate().take(len1 + 1) {
         item[0] = i;
     }
-    for j in 0..=len2 {
-        matrix[0][j] = j;
+    for (j, cell) in matrix[0].iter_mut().enumerate() {
+        *cell = j;
     }
 
     // Fill the matrix
@@ -243,7 +243,7 @@ pub fn deduplicate_history() -> Result<()> {
     }
 
     // Sort by timestamp (newest first)
-    deduplicated_entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    deduplicated_entries.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
 
     history.entries = deduplicated_entries;
     save_history(&history)?;
