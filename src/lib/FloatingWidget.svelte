@@ -147,7 +147,7 @@
 
 <div class="h-screen w-screen p-2 bg-transparent">
   <div
-    class="card card-border bg-base-100 shadow-xl rounded-xl h-full flex flex-col overflow-hidden"
+    class="card card-border bg-base-100 shadow-xl rounded-xl h-full flex flex-col overflow-hidden opacity-90"
   >
     <!-- Drag handle / header -->
     <div

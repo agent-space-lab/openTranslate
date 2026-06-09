@@ -91,10 +91,14 @@
 
 <div class="w-full">
   <div class="divider my-8"></div>
-  <h5 class="card-title flex items-center gap-2 mb-8">
+  <h5 class="card-title flex items-center gap-2 mb-2">
     <StarIcon class="w-5 h-5" />
     Favourite Languages
   </h5>
+  <p class="text-sm text-base-content/50 mb-8 mx-1 text-wrap">
+    These also appear in the floating window's quick language picker, for ease
+    of use.
+  </p>
 
   <div class="space-y-6 mx-8">
     <!-- Add Favorite Language -->

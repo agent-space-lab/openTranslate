@@ -3,5 +3,5 @@
   "identifier": "floating",
   "description": "Capability for the floating quick-translate window",
   "windows": ["floating"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "core:window:allow-start-dragging"]
 }
